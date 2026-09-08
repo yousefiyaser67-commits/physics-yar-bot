@@ -290,15 +290,39 @@ async def routed_text(update,context):
 
 def main():
     init_db()
-    app=Application.builder().token(BOT_TOKEN).build()
-    app.add_handler(CommandHandler("start",start))
-    app.add_handler(CommandHandler("help",help_cmd))
-    app.add_handler(CommandHandler("admin",admin_cmd))
+
+    app = Application.builder().token(BOT_TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("help", help_cmd))
+    app.add_handler(CommandHandler("admin", admin_cmd))
     app.add_handler(CallbackQueryHandler(callbacks))
-    app.add_handler(MessageHandler(filters.PHOTO,photo_handler))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND,routed_text))
-    print("Physics bot is running...")
-    app.run_polling()
+    app.add_handler(MessageHandler(filters.PHOTO, photo_handler))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, routed_text))
+
+    # Render Web Service: Telegram webhook
+    port = int(os.getenv("PORT", "10000"))
+    external_url = os.getenv("RENDER_EXTERNAL_URL") or os.getenv("WEBHOOK_URL")
+    if not external_url:
+        raise RuntimeError(
+            "RENDER_EXTERNAL_URL/WEBHOOK_URL تنظیم نشده است. "
+            "این نسخه برای Render Web Service ساخته شده است."
+        )
+
+    external_url = external_url.rstrip("/")
+    webhook_path = "telegram-webhook"
+    webhook_url = f"{external_url}/{webhook_path}"
+    secret = os.getenv("WEBHOOK_SECRET") or None
+
+    print(f"Physics bot webhook: {webhook_url}")
+    app.run_webhook(
+        listen="0.0.0.0",
+        port=port,
+        url_path=webhook_path,
+        webhook_url=webhook_url,
+        secret_token=secret,
+        drop_pending_updates=True,
+        allowed_updates=Update.ALL_TYPES,
+    )
 
 if __name__=="__main__":
     main()
